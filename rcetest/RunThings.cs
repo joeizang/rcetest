@@ -26,7 +26,7 @@ internal static class RunThings
         {
             Console.WriteLine($"rcetest version {assembly}");
         }
-        else if (/*args.Length <= 6 &&*/ args.Length > 0)
+        else if (args.Length > 0)
         {
             // capture all the values of each argument
             for(var idx = 0; idx < args.Length; idx++)
@@ -133,27 +133,5 @@ internal static class RunThings
             Console.WriteLine($"Error: {response.StatusCode}");
             Console.WriteLine(response.Content);
         }
-    }
-}
-
-internal class RawJsonContent : HttpContent
-{
-    private readonly byte[] _content;
-
-    public RawJsonContent(string json)
-    {
-        _content = System.Text.Encoding.UTF8.GetBytes(json);
-        Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-    }
-
-    protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
-    {
-        return stream.WriteAsync(_content, 0, _content.Length);
-    }
-
-    protected override bool TryComputeLength(out long length)
-    {
-        length = _content.Length;
-        return true;
     }
 }
