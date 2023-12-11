@@ -1,8 +1,22 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using RestSharp;
+
 namespace rcetest;
 
 internal static class RunThings
 {
-    public static void ProcessArgs(string[] args, string assembly, Dictionary<string, string> valuesPassed, Action returnHelpMessage)
+    [RequiresUnreferencedCode("Calls rcetest.RunThings.RunTest(Dictionary<String, String>, HttpClient)")]
+    [RequiresDynamicCode("Calls rcetest.RunThings.RunTest(Dictionary<String, String>, HttpClient)")]
+    public static void ProcessArgs(string[] args, string assembly, 
+        Dictionary<string, string> valuesPassed, 
+        Action returnHelpMessage,
+        RestClient client)
     {
         if (args.Length == 1 && args[0].Contains("help"))
         {
@@ -12,7 +26,7 @@ internal static class RunThings
         {
             Console.WriteLine($"rcetest version {assembly}");
         }
-        else if (args.Length <= 6 && args.Length > 1)
+        else if (/*args.Length <= 6 &&*/ args.Length > 0)
         {
             // capture all the values of each argument
             for(var idx = 0; idx < args.Length; idx++)
@@ -34,18 +48,112 @@ internal static class RunThings
                 }
                 valuesPassed.Add(args[keyidx], args[valueidx]);
             }
-            foreach(var v in valuesPassed)
+
+            RunTest(valuesPassed, client);
+        }
+    }
+
+    [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.Serialize<TValue>(TValue, JsonSerializerOptions)")]
+    [RequiresDynamicCode("Calls System.Text.Json.JsonSerializer.Serialize<TValue>(TValue, JsonSerializerOptions)")]
+    private static void RunTest(Dictionary<string, string> valuesPassed, RestClient client)
+    {
+        var number = int.TryParse(valuesPassed["-n"], out var num) ? num : 1;
+        var pload = new Payload();
+        pload.Sources.ContractName.Content.Replace("\u0022", "");
+        var payload = JsonSerializer.Serialize(pload, typeof(Payload), RCETestSerializerContext.Default);
+        var tasks = new List<Task>();
+        for (var i = 0; i < number; i++)
+        {
+            tasks.Add(SendCompileRequest(client, payload));
+        }
+        Task.WaitAll([..tasks]);
+    }
+
+    private static async Task<string> SendCompileRequest(RestClient client, string payload)
+    {
+        var request = new RestRequest("compile", Method.Post);
+        request.AddJsonBody(new Payload(), ContentType.Json);
+        try
+        {
+            var response = await client.ExecuteAsync(request).ConfigureAwait(false);
+            if (response.StatusCode == HttpStatusCode.OK)
             {
-                Console.WriteLine($"{v.Key} {v.Value}");
+                var taskId = response.Content;
+                await GetCompileResult(client, taskId).ConfigureAwait(false);
+                return taskId;
+            }
+            else
+            {
+                Console.WriteLine($"Error: {response.StatusCode}");
+                Console.WriteLine(response.Content);
+                return string.Empty;
             }
         }
-        else if (args.Length > 6)
+        catch (Exception e)
         {
-            Console.WriteLine("Too many arguments. Use --help for more information.");
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+
+    private static async Task<string> GetCompileStatus(string taskId, RestClient client)
+    {
+        var cleanedTaskId = taskId.Replace("\"", "");
+        var request = new RestRequest($"status/{cleanedTaskId}", Method.Get);
+        var response = await client.GetAsync(request).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            var result = response.Content;
+            Console.WriteLine(result);
+            return result.Replace("\"", "");
         }
         else
         {
-            Console.WriteLine("No arguments provided. Use --help for more information.");
+            Console.WriteLine($"Error: {response.StatusCode}");
+            Console.WriteLine(response.Content);
+            return string.Empty;
         }
+    }
+    
+    
+    private static async Task GetCompileResult(RestClient client, string taskId)
+    {
+        var cleanedTaskId = taskId.Replace("\"", "");
+        var status = await GetCompileStatus(cleanedTaskId, client).ConfigureAwait(false);
+        if(status != "SUCCESS") return;
+        var request = new RestRequest($"artifacts/{cleanedTaskId}", Method.Get);
+        var response = await client.GetAsync(request).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            var result = response.Content;
+            Console.WriteLine(result);
+        }
+        else
+        {
+            Console.WriteLine($"Error: {response.StatusCode}");
+            Console.WriteLine(response.Content);
+        }
+    }
+}
+
+internal class RawJsonContent : HttpContent
+{
+    private readonly byte[] _content;
+
+    public RawJsonContent(string json)
+    {
+        _content = System.Text.Encoding.UTF8.GetBytes(json);
+        Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+    }
+
+    protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+    {
+        return stream.WriteAsync(_content, 0, _content.Length);
+    }
+
+    protected override bool TryComputeLength(out long length)
+    {
+        length = _content.Length;
+        return true;
     }
 }
