@@ -1,10 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using RestSharp;
 
 namespace rcetest;
@@ -55,7 +51,7 @@ internal static class RunThings
 
     [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.Serialize<TValue>(TValue, JsonSerializerOptions)")]
     [RequiresDynamicCode("Calls System.Text.Json.JsonSerializer.Serialize<TValue>(TValue, JsonSerializerOptions)")]
-    private static void RunTest(Dictionary<string, string> valuesPassed, RestClient client)
+    private static void RunTest(IReadOnlyDictionary<string, string> valuesPassed, IRestClient client)
     {
         var number = int.TryParse(valuesPassed["-n"], out var num) ? num : 1;
         var pload = new Payload();
@@ -69,7 +65,7 @@ internal static class RunThings
         Task.WaitAll([..tasks]);
     }
 
-    private static async Task<string> SendCompileRequest(RestClient client, string payload)
+    private static async Task<string> SendCompileRequest(IRestClient client, string payload)
     {
         var request = new RestRequest("compile", Method.Post);
         request.AddJsonBody(new Payload(), ContentType.Json);
@@ -79,8 +75,8 @@ internal static class RunThings
             if (response.StatusCode == HttpStatusCode.OK)
             {
                 var taskId = response.Content;
-                await GetCompileResult(client, taskId).ConfigureAwait(false);
-                return taskId;
+                await GetCompileResult(client, taskId!).ConfigureAwait(false);
+                return taskId!;
             }
             else
             {
@@ -96,7 +92,7 @@ internal static class RunThings
         }
     }
 
-    private static async Task<string> GetCompileStatus(string taskId, RestClient client)
+    private static async Task<string> GetCompileStatus(string taskId, IRestClient client)
     {
         var cleanedTaskId = taskId.Replace("\"", "");
         var request = new RestRequest($"status/{cleanedTaskId}", Method.Get);
@@ -105,7 +101,7 @@ internal static class RunThings
         {
             var result = response.Content;
             Console.WriteLine(result);
-            return result.Replace("\"", "");
+            return result!.Replace("\"", "");
         }
         else
         {
@@ -116,7 +112,7 @@ internal static class RunThings
     }
     
     
-    private static async Task GetCompileResult(RestClient client, string taskId)
+    private static async Task GetCompileResult(IRestClient client, string taskId)
     {
         var cleanedTaskId = taskId.Replace("\"", "");
         var status = await GetCompileStatus(cleanedTaskId, client).ConfigureAwait(false);

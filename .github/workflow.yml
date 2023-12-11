@@ -1,0 +1,61 @@
+name: .NET Core CI/CD
+
+on:
+  pull_request:
+    types: [labeled]
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.0.x' # specify your .NET Core version
+      - name: Build with dotnet
+        run: dotnet build RemoteConsoleTools.sln --configuration Release -r win-x64
+      - name: Publish
+        run: dotnet publish RemoteConsoleTools.sln -c Release -o ./publish/win-x64 -r win-x64
+      - name: Upload Artifact for Windows
+        uses: actions/upload-artifact@v2
+        with:
+          name: rcetest
+          path: ./publish/win-x64
+
+  build-macos-arm64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.0.x' # specify your .NET Core version
+      - name: Build with dotnet
+        run: dotnet build RemoteConsoleTools.sln --configuration Release -r osx-arm64
+      - name: Publish
+        run: dotnet publish RemoteConsoleTools.sln -c Release -o ./publish/osx-arm64 -r osx-arm64
+      - name: Upload Artifact for macOS ARM64
+        uses: actions/upload-artifact@v2
+        with:
+          name: rcetest
+          path: ./publish/osx-arm64
+
+  release:
+    needs: [build-windows, build-macos-arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: ./artifacts
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/rcetest-windows/**
+            artifacts/rcetest-macos-arm64/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
