@@ -5,3 +5,17 @@ riderModule.iml
 /_ReSharper.Caches/
 .idea/
 .DS_Store
+/.vs/ProjectEvaluation/remoteconsoletools.metadata.v7.bin
+/.vs/ProjectEvaluation/remoteconsoletools.projects.v7.bin
+/.vs/rcetest/v17/.wsuo
+/.vs/rcetest/v17/DocumentLayout.json
+/.vs/RemoteConsoleTools/DesignTimeBuild/.dtbcache.v2
+/.vs/RemoteConsoleTools/FileContentIndex/3621412f-469f-4347-8ead-1878ebbbba20.vsidx
+/.vs/RemoteConsoleTools/FileContentIndex/f2dc9449-fe2b-4708-8db0-a7b5addd5b57.vsidx
+/.vs/RemoteConsoleTools/v17/.futdcache.v2
+/.vs/RemoteConsoleTools/v17/.suo
+/.vs/RemoteConsoleTools/v17/DocumentLayout.json
+/.vs/VSWorkspaceState.json
+/rcetest/Properties/PublishProfiles/FolderProfile.pubxml
+/rcetest/Properties/PublishProfiles/FolderProfile.pubxml.user
+/rcetest/rcetest.csproj.user
